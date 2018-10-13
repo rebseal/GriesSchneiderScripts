@@ -1,4 +1,63 @@
 (* ****************************************************************************
+     __  __      _   _                   _   _
+    |  \/  |__ _| |_| |_  ___ _ __  __ _| |_(_)__ __ _
+    | |\/| / _` |  _| ' \/ -_) '  \/ _` |  _| / _/ _` |
+    |_|  |_\__,_|\__|_||_\___|_|_|_\__,_|\__|_\__\__,_|
+    __   __          _
+    \ \ / /__ _ _ __(_)___ _ _
+     \ V / -_) '_(_-< / _ \ ' \
+      \_/\___|_| /__/_\___/_||_|
+
+   This file is a baseline for comparing other versions tailored for mathics and
+   for SymJa. It is a backport from mathics to Mathematica. Almost all the rest
+   of the commentary in here is specific to mathics because. Diff this file with
+   the mathics version to see the changes we needed to make.
+
+   DIFFERENCES AMONGST MATHEMATICA, MATHICS, AND SYMJA
+
+   Why are there differences between Mathematica and its clones, mathics and
+   SymJa? One reason is that Mathematica has subtle behaviors that are difficult
+   to emulate exactly. Some of those behaviors are probably accidental, rather
+   than by design, but it's difficult to be sure because Mathematica is at least
+   35 years old and the original history of features and fixes may be lost. One
+   of my recent stackexchange question exposed an "open question" in the pattern
+   matcher, according to a Wolfram insider. That means no one knows off the
+   top-of-the-head exactly how it works for my edge cases. I also learned that
+   there have been bugs in versions of Mathematica as late as 10.1 concerning
+   the cases I mentioned. I have been using Mathematica every day for 35 years,
+   and I am still learning things about the pattern matcher. I certainly did
+   while pursuing differences amongst Mathematica, mathics, and SymJa.
+
+   DIFFERENCE 1 --- REDEFINE SYMBOLS AFTER SETTING ATTRIBUTES
+
+   In Mathematica, but not in mathics, to get the behaviors we want, we must
+   repeat all definitions that refer to a symbol like "eqv" after changing the
+   attributes. The order of (1) setting attributes on symbols and (2) making
+   definitions about those symbols matters. That fact is a deep subtlety of
+   Mathematica. Some users have exploited it in their applications, and there is
+   a history of breaking changes and bugs in the pattern matcher around this
+   effect. It's not a great thing, but we'll deal with it.
+
+   See the following for more
+
+   https://mathematica.stackexchange.com/questions/71463/orderless-pattern-matching
+
+   DIFFERENCE 2 --- MULTIPLE ALLOWED REWRITES
+
+   Many replacement rules have multiple correct answers when applied to symbols
+   with OneIdentity and Orderless attributes. Mathematica and mathics differ in
+   the default answer that "ReplaceAll" gives. To get all the correct answers,
+   use "ReplaceList." To get the desired answer, pick it out of the resulting
+   list using [[part]] notation. For example:
+
+   In Mathematica, the preferred rewrite for not[eqv[q,p]]/.notRule is
+   eqv[not[eqv[q]],p]]] because Mathematica rewrites
+   eqv[p,q]/.{eqv[p_,q_]:>{p,q}} ~~> {eqv[p],eqv[q]}. There is another, allowed
+   rewrite, however, revealed by
+
+   ReplaceList[eqv[p,q], {eqv[p_,q_] :> {p,q}}] ~~> {{eqv[p],eqv[q]}, {p,q}}
+
+   ****************************************************************************
 
     Please see
 
@@ -747,7 +806,13 @@ expect[
 
  *************************************************************************** *)
 
+
 SetAttributes[eqv, Flat]
+
+(* DIFFERENCE 1 --- REDEFINE SYMBOLS AFTER SETTING ATTRIBUTES *)
+
+ClearAll[symmetryOfEqv]
+symmetryOfEqv[eqv[p_, q_]] := eqv[q, p]
 
 expect[ eqv[eqv[p, q, q], p]
         ,
@@ -806,18 +871,6 @@ expect[ eqv[eqv[p, q, q], p]
        Out[81]= {p, eqv[q, q, p]}
 
    Good thing we decided to trust AND verify.
-    _      _____   ___  _  _______  _______
-   | | /| / / _ | / _ \/ |/ /  _/ |/ / ___/
-   | |/ |/ / __ |/ , _/    // //    / (_ /
-   |__/|__/_/ |_/_/|_/_/|_/___/_/|_/\___/
-
-   This is a bug in mathics; it should produce {eqv[p], eqv[q, q, p]}; see
-   https://github.com/mathics/Mathics/issues/747. The bug does not affect the
-   current analysis, but be aware that we depart from Mathematica whenever we
-   use pattern-matching with Flat symbols; Mathematica will produce different
-   results. (UPDATE: we now believe that this bug concerns mathics's treatment
-   of attribute "OneIdentity". Check with the issue above for the most
-   up-to-date progress on the bug))
 
    What's going wrong?
 
@@ -917,6 +970,19 @@ invNeqvRule = not[eqv[p_, q_]] :> neqv[p, q]
 
 (* (3.11) Unnamed theorem ************************************************** *)
 
+(*
+
+   DIFFERENCE 2 --- MULTIPLE ALLOWED REWRITES
+
+   In Mathematica, the preferred rewrite for not[eqv[q,p]]/.notRule is
+   eqv[not[eqv[q]],p]]] because, as noted, Mathematica rewrites
+   eqv[p,q]/.{eqv[p_,q_] :> {p,q}} ~~> {eqv[p],eqv[q]}. There is another,
+   allowed rewrite, however, revealed by
+
+   ReplaceList[eqv[p,q], {eqv[p_,q_] :> {p,q}}] ~~> {{eqv[p],eqv[q]}, {p,q}}
+
+ *)
+
 expect[ eqv[not[q], p]
         ,
         Module[{proposition =  eqv[not[p], q]},
@@ -930,9 +996,19 @@ expect[ eqv[not[q], p]
 
                 symmetryOfEqv /@ #1 &
 
-                // expectBy[   not[eqv[q, p]]   , "internal symmetryOfEqv"]) /.
+                // expectBy[   not[eqv[q, p]]   , "internal symmetryOfEqv"]) //
 
-                notRule
+(*
+
+   Many of these replacement rules have multiple correct answers. Mathematica
+   and mathics differ in the default answer that "ReplaceAll" gives. To get all
+   the correct answers, use "ReplaceList." To get the desired answer, pick it
+   out of the resulting list using [[part]] notation.
+
+ *)
+
+                ReplaceList[#, notRule][[2]] &
+               (* #1 /. notRule & *)
 
                // expectBy[   eqv[not[q], p]   , "notRule"]
         ] ]
@@ -964,7 +1040,17 @@ expect[ eqv[not[q], p]
 
                // expectBy[   not[eqv[q, p]]   , "internal symmetryOfEqv"] //
 
-               #1 /. notRule &
+               (*
+
+   Many of these replacement rules have multiple correct answers. Mathematica
+   and mathics differ in the default answer that "ReplaceAll" gives. To get all
+   the correct answers, use "ReplaceList." To get the desired answer, pick it
+   out of the resulting list using [[part]] notation.
+
+                *)
+
+               ReplaceList[#, notRule][[2]] &
+               (* #1 /. notRule & *)
 
                // expectBy[   eqv[not[q], p]   , "notRule"]
         ] ]
@@ -1000,6 +1086,34 @@ expect[ eqv[not[q], p]
  *************************************************************************** *)
 
 ClearAll[eqv]                   (* Turn off the flatness for now. *)
+
+(* DIFFERENCE 1 --- REDEFINE SYMBOLS AFTER SETTING ATTRIBUTES *)
+
+defineAll[] := (
+        ClearAll[transitivity];
+        transitivity[and[eqv[x_, y_], eqv[y_, z_]]] := eqv[x, z];
+        ClearAll[substitution];
+        substitution[e_, v_: List, f_: List] :=
+        e /. MapThread[Rule, {v, f}];
+        ClearAll[associativity];
+        associativity[eqv[eqv[p_, q_], r_]] := eqv[p, eqv[q, r]];
+        associativity[eqv[p_, eqv[q_, r_]]] := eqv[eqv[p, q], r];
+        ClearAll[symmetryOfEqv];
+        symmetryOfEqv[eqv[p_, q_]] := eqv[q, p];
+        ClearAll[identity];
+        identity[eqv[q_, q_]] := eqv[true, eqv[q, q]];
+        ClearAll[false, falseRule, falseDef];
+        falseRule = {false -> not[true]};
+        falseDef = eqv[false, not[true]];
+        ClearAll[notRule, invNotRule];
+        notRule = (not[eqv[p_, q_]] :> eqv[not[p], q]);
+        invNotRule = (eqv[not[p_], q_] :> not[eqv[p, q]]);
+        ClearAll[neqv, neqvRule, invNeqvRule];
+        neqvRule = neqv[p_, q_] :> not[eqv[p, q]];
+        invNeqvRule = not[eqv[p_, q_]] :> neqv[p, q];
+        );
+
+defineAll[];
 
 expect[ true
     ,
@@ -1349,7 +1463,7 @@ Module[{leftHalf =
                // expectBy [ eqv[p, eqv[q, r]], "symmetryOfEqv" ]
         ]}
        ,
-         leftHalf === rightHalf]
+         leftHalf == rightHalf]
 ]
 
 (* ****************************************************************************
@@ -1415,7 +1529,7 @@ Module[{leftHalf =
                // expectBy [ eqv[p, eqv[q, r]], "symmetryOfEqv" ]
         ]}
        ,
-         leftHalf === rightHalf] ]
+         leftHalf == rightHalf] ]
 
 (* ****************************************************************************
 
@@ -1462,7 +1576,7 @@ Module[{leftHalf =
                // expectBy [ eqv[p, eqv[q, r]], "symmetryOfEqv" ]
         ]}
        ,
-         leftHalf === rightHalf] ]
+         leftHalf == rightHalf] ]
 
 (* ****************************************************************************
 
@@ -1528,7 +1642,7 @@ Module[{leftHalf =
                // expectBy [ eqv[p, eqv[q, r]], "symmetryOfEqv" ]
         ]}
        ,
-         leftHalf === rightHalf] ]
+         leftHalf == rightHalf] ]
 
 (* ****************************************************************************
 
@@ -1573,7 +1687,7 @@ Module[{leftHalf =
                // expectBy [ eqv[p, eqv[q, r]], "symmetryOfEqv" ]
         ]}
        ,
-         leftHalf === rightHalf] ]
+         leftHalf == rightHalf] ]
 
 (* (3.18) Mutual associativity of eqv and neqv ********************************
 
@@ -1611,7 +1725,7 @@ expect[ True
        // expectBy [ not[eqv[p, eqv[q, r]]], "inv of neqv" ] //
        Identity]}
 
- , leftHalf === rightHalf] ]
+ , leftHalf == rightHalf] ]
 
 (* (3.19) Mutual interchangeability *******************************************
 
@@ -1624,8 +1738,51 @@ expect[ True
 
  *************************************************************************** *)
 
-SetAttributes[eqv, Flat]
-SetAttributes[neqv, Flat]
+SetAttributes[eqv, Flat];
+SetAttributes[neqv, Flat];
+
+(* Must restate symbol definitions after their attributes change in Mathematica*)
+(* (not in mathics). *)
+
+ClearAll[neqvRule, invNeqvRule];
+neqvRule    = neqv[p_, q_]     :> not[eqv[p, q]];
+invNeqvRule = not[eqv[p_, q_]] :> neqv[p, q];
+
+ClearAll[notRule, invNotRule]
+notRule    = not[eqv[p_, q_]] :> eqv[not[p], q];
+invNotRule = eqv[not[p_], q_] :> not[eqv[p, q]];
+
+(*
+
+   DIFFERENCE 2 --- MULTIPLE ALLOWED REWRITES
+
+   When applying a rule, we sometimes want to favor a certain part, that is, a
+   certain one of the permitted alternatives. We have already seen "ReplaceList"
+   to achieve that goal at top level. In this proof of 3.19, we need
+   "ReplaceList" at a lower level. Mathematica favors
+
+   eqv[neqv[p,q], r] /. neqvRule ~~> eqv[not[eqv[neqv[p], neqv[q]]], r]
+
+   but we want (and mathics prefers)
+
+   eqv[neqv[p,q], r] /. neqvRule ~~> eqv[not[eqv[p,q]],r]
+
+   One might think "just apply another rule, say neqv[p_]:>p, to flatten out the
+   singletons," but it's not so easy because neqv has attribute "Flat" and the
+   pattern neqv[p_] will match any number of arguments to p.
+
+   Let's make a new overload of "fireRule" to handle this case. This rule
+   requires rules to be written outside of lists, as we normally do, but watch
+   out for that.
+
+ *)
+
+fireRule[rule_, level_, part_][arg_] :=
+        Map[If[MatchQ[#, rule[[1]]],
+               ReplaceList[#, rule][[part]],
+               #] &,
+              arg,
+            {level}];
 
 expect[ True
   ,
@@ -1633,7 +1790,7 @@ expect[ True
     rightHalf = Module[{proposition = eqv[neqv[p, q], r]},
         proposition
         // expectBy [ eqv[neqv[p, q], r], "right prop" ] //
-        fireRule[neqvRule, 1]
+        fireRule[neqvRule, 1, 2]
         // expectBy [ eqv[not[eqv[p, q]], r], "def of neqv" ] //
         fireRule[invNotRule, 0]
         // expectBy [ not[eqv[p, q, r]], "def of neqv" ] //
@@ -1641,11 +1798,11 @@ expect[ True
     leftHalf = Module[{proposition = neqv[p, eqv[q, r]]},
         proposition
         // expectBy [ neqv[p, eqv[q, r]], "left prop" ] //
-        fireRule[neqvRule, 0]
+        fireRule[neqvRule, 0, 2]
         // expectBy [ not[eqv[p, q, r]], "inv of neqv" ] //
         Identity]}
 
- , leftHalf === rightHalf] ]
+ , leftHalf == rightHalf] ]
 
 (* ****************************************************************************
 
@@ -1682,7 +1839,7 @@ expect[ eqv[not[q], p]
                // expectBy[    not[eqv[p, q]]   , "invNotRule"] //
                fireRule[symmetryOfEqv, 1]
                // expectBy[    not[eqv[q, p]]   , "internal symmetryOfEqv"] //
-               fireRule[notRule      , 0]
+               fireRule[notRule      , 0, 2]
                // expectBy[    eqv[not[q], p]   , "notRule"] //
                Identity
         ] ]
@@ -1823,11 +1980,11 @@ expect[ neqv[q, p]
         Module[{proposition = neqv[p, q]},
                proposition
                // expectBy[    neqv[p, q]    , "proposition"] //
-               fireRule[neqvRule, 0]
+               fireRule[neqvRule, 0, 2]
                // expectBy[    not[eqv[p, q]], "3.10, def of neqv"] //
                fireRule[symmetryOfEqv, 1]
                // expectBy[    not[eqv[q, p]], "3.2 internal symmetryOfEqv"] //
-               fireRule[invNeqvRule, 0]
+               fireRule[invNeqvRule, 0, 2]
                // expectBy[    neqv[q, p]    , "3.10, inverse neqv rule"] //
                Identity
         ] ]
@@ -1927,19 +2084,20 @@ zeroOfOr[p_] := or[p, true] -> true
 
  *)
 
-expect[not[p]                   (* 3.15, again *)
-     ,
+
+(* 3.15,again *)
+
+expect[not[p],
        Module[{proposition = eqv[false, p]},
-              proposition
-              // expectBy[   eqv[false, p]    , "proposition"] //
-              fireRule[invFalseDef, 1]
-              // expectBy[   eqv[not[true], p], "def of false (macro)"] //
-              fireRule[invNotRule, 0]
-              // expectBy[   not[eqv[true, p]], "3.9, distributivity"] //
-              fireRule[invIdentity, 1]
-              // expectBy[   not[p]           , "3.3, identity"] //
-              Identity
+              proposition // expectBy[eqv[false, p], "proposition"] //
+              fireRule[invFalseDef, 1] //
+              expectBy[eqv[not[true], p], "def of false (macro)"] //
+              fireRule[invNotRule, 0, 2] //
+              expectBy[not[eqv[true, p]], "3.9, distributivity"] //
+              fireRule[invIdentity, 1, 2] //
+              expectBy[not[p], "3.3, identity"] // Identity
        ] ]
+
 
 (*
 
@@ -1979,7 +2137,7 @@ expect[true
     // expectBy[    eqv[or[p, false], or[p, p]]   , "3.26, idempotency"]//
     fireRule[factoringDisjunction, 0]
     // expectBy[    or[p, eqv[false, p]]     , "3.27, distributivity of \/"] //
-    fireRule[invNotPRule, 1]
+    fireRule[invNotPRule, 1, 2]
     // expectBy[    or[p, not[p]]            , "3.15, unnamed theorem"] //
     fireRule[invExcludedMiddle, 0]
     // expectBy[    true                     , "3.28, excluded middle"] //
@@ -2032,7 +2190,7 @@ expect[true
               // expectBy[    eqv[or[p, false], or[p, p]]   , "3.26, idempotency"]//
               fireRule[factoringDisjunction, 0]
               // expectBy[    or[p, eqv[false, p]]     , "3.27, distributivity of \/"] //
-              fireRule[invNotPRule, 1]
+              fireRule[invNotPRule, 1, 2]
               // expectBy[    or[p, not[p]]            , "3.15, unnamed theorem"] //
               fireRule[invExcludedMiddle, 0]
               // expectBy[    true                     , "3.28, excluded middle"] //
@@ -2221,8 +2379,9 @@ right = Module[{proposition = and[p, and[q, r]]},
            eqv[p, q, r, or[p, q], or[p, q, r], or[p, r], or[q, r]],
            "3.27 distributivity of \/ and implicit associativity"] //
        Identity
-]}],
-left === right]
+]},
+  left == right
+] ]
 
 
 
@@ -2255,85 +2414,7 @@ Module[{proposition = and[p, p]},
    We can, instead, imagine a "pick" rule that extracts the part of a Leibniz
    application we want. With Flat, "multiary" eqv (new jargon, meaning an eqv
    with any number of arguments), we will extract the First and Rest of a
-   premise (lispers will recognize "car" and "cdr"). Mathics bug #747 won't
-   affect us because in both mathics and Mathematica,
-
-       First[eqv[p, q, r]] === p
-       Rest[eqv[p, q, r]] === eqv[q, r]]
-
-   for all combinations of {Flat, Orderless, OneIdentity}. Proof:
-
-   Generate all combinations as follows:
-
-       In[66]:=
-       Flatten[
-         Table[
-           Union[
-             Sort/@Permutations[{Flat,Orderless,OneIdentity}, {i}]],
-           {i,3}],
-         1]
-       Out[66]= {{Flat},
-                 {OneIdentity},
-                 {Orderless},
-                 {Flat, OneIdentity},
-                 {Flat, Orderless},
-                 {OneIdentity, Orderless},
-                 {Flat, OneIdentity, Orderless}}
-
-   Then check as follows:
-
-      In[67]:=
-      Table[
-        Module[{e = eqv[p,q,r]},    <~~~ HERE IS THE MONEY
-          ClearAll[eqv];
-          SetAttributes[eqv,j];
-          {j, First@e, Rest@e}],
-       {j, ... the above ...}]
-
-      Out[67]= {{{Flat},                         p, eqv[q, r]},
-                {{OneIdentity},                  p, eqv[q, r]},
-                {{Orderless},                    p, eqv[q, r]},
-                {{Flat, OneIdentity},            p, eqv[q, r]},
-                {{Flat, Orderless},              p, eqv[q, r]},
-                {{OneIdentity, Orderless},       p, eqv[q, r]},
-                {{Flat, OneIdentity, Orderless}, p, eqv[q, r]}}
-
-   We only get differences, and subtle ones, when we pattern-match:
-
-       Table[
-         Module[{ e = (eqv[p,q,r] /. {eqv[x_,y_] :> {x,y}}) },    <~~~ DIFF'T
-           ClearAll[eqv];
-           SetAttributes[eqv,j];
-           {j, First@e, Rest@e}],
-        {j, ... the above ...}]
-
-   produces, in Mathematica
-
-       {{{Flat},                         p, {eqv[q, r]}},
-        {{OneIdentity},                  eqv[p], {eqv[q, r]}},
-        {{Orderless},                    p, eqv[q, r]},
-        {{Flat, OneIdentity},            p, eqv[q, r]},
-        {{Flat, Orderless},              p, {eqv[q, r]}},
-        {{OneIdentity, Orderless},       q, {eqv[p, r]}},
-        {{Flat, OneIdentity, Orderless}, p, eqv[q, r]}}
-
-   but, in mathics
-
-       {{{Flat},                         p, {eqv[q, r]}},
-        {{OneIdentity},                  p, {eqv[q, r]}},    <~~~ OOPS
-        {{Orderless},                    p, eqv[q, r]},
-        {{Flat, OneIdentity},            p, eqv[q, r]},
-        {{Flat, Orderless},              p, {eqv[q, r]}},
-        {{OneIdentity, Orderless},       p, {eqv[q, r]}},    <~~~ OOPS
-        {{Flat, OneIdentity, Orderless}, p, eqv[q, r]}}
-
-   There are enough subtleties that making mathics consistent with Mathematica
-   is a lengthy debugging exercise if not a total rewrite of mathics because
-   everything depends on pattern-matching.
-
-   However, we note the good fortune that pattern-matching produces the same
-   results when our symbols are Flat, OneIdentity, Orderless, so we can postpone
-   the debugging or rewriting work so long as we only use such symbols.
+   premise (lispers will recognize "car" and "cdr").
 
    LESSON:
 
@@ -2381,7 +2462,7 @@ premise_ :> Module[{x = First[premise], y = Rest[premise]},
                       Print[ToString[x]],
                       (* else *)
                       y[[part - 1]]
-                   ] ]
+                   ] ];
 
 expect[p
      ,
