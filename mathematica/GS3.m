@@ -1,172 +1,7 @@
-(* ****************************************************************************
+<<"README.m"
+<<"GS0.m"
 
-   MISSION STATEMENT
-
-   The mission of mathDragon is two-fold (1) transcribe Gries & Schneider,
-   teaching simple logic as a foundation for not just discrete mathematics, but
-   all mathematics, plus teaching conditional term-rewriting and to beginners
-   along the way, (2) recapitulate TLA, the Temporal Logic of Actions, in a
-   programming environment as much like Mathematica as we can make it, but
-   open-sourced for flexibility, extensibility, and innovation. TLA, we believe,
-   is a critical resource for high-assurance designs, especially in the emerging
-   disciplines of robotics and AI.
-
-   The distinguishing feature of Mathematica from other proof assistants,
-   theorem provers, and implementations of TLA is that it is also a
-   general-purpose symbolic and numerical programming language, and a very good
-   one. We want to expose a programming language in the style of Mathematica as
-   a text-to-text library that can be embedded in any kind of programming tool
-   or environment, even just a raw terminal, but certainly including emacs; IDEs
-   like Eclipse, IntelliJ, and Visual Studio Code; cloud apps; and web apps. No
-   other proof assistant, theorem prover, or implementation of TLA to our
-   knowledge embodies the combination of (1) full integration with
-   general-purpose programming, (2) open source, and (3) basis on a text-to-text
-   core library.
-     __  __      _   _                   _   _
-    |  \/  |__ _| |_| |_  ___ _ __  __ _| |_(_)__ __ _
-    | |\/| / _` |  _| ' \/ -_) '  \/ _` |  _| / _/ _` |
-    |_|  |_\__,_|\__|_||_\___|_|_|_\__,_|\__|_\__\__,_|
-    __   __          _
-    \ \ / /__ _ _ __(_)___ _ _
-     \ V / -_) '_(_-< / _ \ ' \
-      \_/\___|_| /__/_\___/_||_|
-
-   This file is a baseline for comparing other versions tailored for mathics and
-   for SymJa. It is a backport from mathics to Mathematica. Almost all the rest
-   of the commentary in here is specific to mathics because that's where I
-   started. Diff this file with the mathics version to see the changes we needed
-   to make.
-
-   DIFFERENCES AMONGST MATHEMATICA, MATHICS, AND SYMJA
-
-   Why are there differences between Mathematica and its clones, mathics and
-   SymJa? One reason is that Mathematica has subtle behaviors that are difficult
-   to emulate exactly. Some of those behaviors are probably accidental, rather
-   than by design, but it's difficult to be sure because Mathematica is at least
-   35 years old and the original history of features and fixes may be lost. One
-   of my recent stackexchange question exposed an "open question" in the pattern
-   matcher, according to a Wolfram insider. That means no one knows off the
-   top-of-the-head exactly how it works for my edge cases. I also learned that
-   there have been bugs in versions of Mathematica as late as 10.1 concerning
-   the pattern-matching edge cases I mentioned. I have been using Mathematica
-   every day for 35 years, and I am still learning things about the pattern
-   matcher. I certainly did while pursuing differences amongst Mathematica,
-   mathics, and SymJa. Either I'm just thick, or the pattern-matcher is subtle,
-   or both. Evidence for subtlety is that "open questions" and bugs persist this
-   far into the game.
-
-   However, that is not a criticism of Mathematica nor its pattern matcher! It
-   is is clearly one of the most advanced programming tools in the world.
-   Subjectively, it is gloriously expressive and joyfully fun to use. The fact
-   that it continues to teach me things could equally be counted as "richness,"
-   "power," and "depth" as "subtlety."
-
-   DIFFERENCE 1 --- REDEFINE SYMBOLS AFTER SETTING ATTRIBUTES
-
-   In Mathematica, but not in mathics, to get the behaviors we want, we must
-   repeat all definitions that refer to a symbol like "eqv" after changing the
-   attributes. The order of (1) setting attributes on symbols and (2) making
-   definitions about those symbols matters. That fact is a deep subtlety of
-   Mathematica. Some users have exploited it in their applications, and there is
-   a history of breaking changes and bugs in the pattern matcher around this
-   effect.
-
-   See the following for more
-
-   https://mathematica.stackexchange.com/questions/71463/orderless-pattern-matching
-
-   DIFFERENCE 2 --- MULTIPLE ALLOWED REWRITES
-
-   Many replacement rules have multiple correct answers when applied to symbols
-   with Flat, OneIdentity, and Orderless attributes. Mathematica and mathics
-   sometimes differ in the default answer that "ReplaceAll" gives. To get all
-   the correct answers, use "ReplaceList." To get the desired answer, pick it
-   out of the resulting list using [[part]] notation. For example:
-
-     In Mathematica, the preferred rewrite for not[eqv[q,p]]/.notRule is
-     eqv[not[eqv[q]],p]]] because Mathematica rewrites
-
-     eqv[p,q]/.{eqv[p_,q_]:>{p,q}} ~~> {eqv[p],eqv[q]}.
-
-     There is at least one more, allowed rewrite, however, revealed by
-
-     ReplaceList[eqv[p,q], {eqv[p_,q_] :> {p,q}}] ~~> {{eqv[p],eqv[q]}, {p,q}}
-
-   ****************************************************************************
-    __  __      _   _    _        __   __          _
-   |  \/  |__ _| |_| |_ (_)__ ___ \ \ / /__ _ _ __(_)___ _ _
-   | |\/| / _` |  _| ' \| / _(_-<  \ V / -_) '_(_-< / _ \ ' \
-   |_|  |_\__,_|\__|_||_|_\__/__/   \_/\___|_| /__/_\___/_||_|
-
-    Please see
-
-    https://github.com/rebcabin/Mathics/blob/master/mathics/packages/
-
-    for the most up-to-date version. Changes will be committed there from now
-    on.
-
-    When mathics itself is updated, you must reinstall it:
-
-        python setup.py install
-
-    You can run unit tests as follows:
-
-        python setup.py test
-
-   ****************************************************************************
-
-    ___              _       __   __          _
-   / __|_  _ _ __ _ | |__ _  \ \ / /__ _ _ __(_)___ _ _
-   \__ \ || | '  \ || / _` |  \ V / -_) '_(_-< / _ \ ' \
-   |___/\_, |_|_|_\__/\__,_|   \_/\___|_| /__/_\___/_||_|
-        |__/
-
-   TODO
-
-   ****************************************************************************
-     ___     _          __       ___     _             _    _
-    / __|_ _(_)___ ___ / _|___  / __| __| |_  _ _  ___(_)__| |___ _ _
-   | (_ | '_| / -_|_-< > _|_ _| \__ \/ _| ' \| ' \/ -_) / _` / -_) '_|
-    \___|_| |_\___/__/ \_____|  |___/\__|_||_|_||_\___|_\__,_\___|_|
-
-
-    This is an extended transcription of Gries & Schnedier, "A Logical Approach
-    to Discrete Math," into mathics (https://goo.gl/wSm1wt), a free clone of
-    Mathematica (https://goo.gl/0uvLZ), written in Python. I got mathics to run
-    on Python 3.5 and not on Python 3.6.
-
-    @Book{gries1993a,
-     author = {Gries, David},
-     title = {A Logical Approach to Discrete Math},
-     publisher = {Springer New York},
-     year = {1993},
-     address = {New York, NY},
-     isbn = {978-1-4757-3837-7}}
-
-    Why are we doing this? Gries & Schnedier is a great example of a formal
-    method. Formal methods means "machine-checked proofs." Formal Methods help
-    you write better software. They can help you avoid billion-dollar mistakes,
-    like crashing the Mars Climate Observer because the units of measure
-    "newton" and "pound-force" were not checked by machine. Like losing customer
-    data in a cloud database because of an unanticipated edge-case thirty-five
-    steps into a leader-election protocol.
-
-    Fall in love with formal methods, please! They're related to static
-    type-checking (that's a little formal method in your compiler, proving
-    little theorems about types in your code), and great things like
-    Clojure.spec (https://goo.gl/sttnFC). I think a lot of people know those are
-    good, but there are lots of other, lesser-known formal methods like
-    Statecharts (https://statecharts.github.io/) and TLA+
-    (https://goo.gl/dx32Mw). Statecharts allowed me to formally prove that an
-    embedded controller for a robot had no bugs. TLA+ saved Amazon's Dynamo DB a
-    catastrophic failure (https://goo.gl/pTpZYT). Many mistakes have been found
-    in published algorithms and protocols at the foundational layer of the
-    internet and cloud computing when those protocols were subjected to formal
-    methods (no citation).
-
- *************************************************************************** *)
-
-(* Chaper 3, Propositional Calculus, page 41 **********************************
+(* Chapter 3, Propositional Calculus, page 41 **********************************
  ___                      _ _   _               _
 | _ \_ _ ___ _ __  ___ __(_) |_(_)___ _ _  __ _| |
 |  _/ '_/ _ \ '_ \/ _ (_-< |  _| / _ \ ' \/ _` | |
@@ -220,9 +55,8 @@ couple of philosophical comments:
 
 PHILOSOPHY:
 
-We can't use and because it's not been defined. But there is a much deeper
-reason we must not use ANYTHING except pattern matching: no ifs, ands, or buts
-(excuse the pun).
+We can't use "and" because it's not been defined. But there is a much deeper
+reason we must not use ANYTHING except pattern matching: no ifs, ands, or buts.
 
 At this stage of development, we are writing a SEQUENCE of axioms and theorems,
 each depending ONLY on the ones before it in the sequence. We are using ONLY
@@ -233,7 +67,7 @@ built-ins on the conditional side of the patterns, as in
 leibnizPick1[part_] =
     expr:eqv[args___] /; MemberQ[expr, true] :> {args}[[part]]
 
-where /; is Condition and the expression is
+where /; is Condition and the expression in FullForm is
 
 RuleDelayed[
   Condition[
@@ -246,9 +80,8 @@ The reason (meta-reason?) we don't allow built-ins on the right-hand side of any
 rule is that we are writing rules that represent our (human) reasoning about the
 manipulation of inert symbols, and that's it, no interpretation of the symbols.
 We're building up logic by just syntactic rules. If we allowed the testing of
-things at run time, the way you would do with your use of built-in "If", we
-wouldn't just be rewriting symbols, we would be testing them, dipping into
-MEANING before we even have any idea what MEANING might MEAN!
+things at run time, wouldn't just be rewriting symbols, we would be testing
+them, dipping into MEANING before we even have any idea what MEANING might MEAN!
 
 My bad solution using "and" is kind of a halfway dip into "meaning." I was
 trying to express the idea that TWO patterns must match before transitivity can
@@ -269,21 +102,15 @@ Your use of "If" to affect the outcome is using tools we're not allowed to use
 (yet), but is also at the wrong level. You purport to return "False" if the
 conditions of transitivity are not met. But that's not a correct definition of
 transitivity. Transitivity isn't "True" or "False" (unless we lift the entire
-project into some kind of higher-level "Maybe" monad, but I digress
-unhelpfully). Transitivity either pertains or it doesn't, and our only tool for
-testing pertinence is pattern matching. If transitivity pertains, we get to
-rewrite a pair of patterns as a certain outcome. If transitivity doesn't
-pertain, then we don't get to rewrite the pair of patterns as anything, let
-alone as "False".
+project into some kind of higher-level "Maybe" monad). Transitivity either
+pertains or it doesn't, and our only tool for testing pertinence is pattern
+matching. If transitivity pertains, we get to rewrite a pair of patterns as a
+certain outcome. If transitivity doesn't pertain, then we don't get to rewrite
+the pair of patterns as anything, let alone as "False".
 
 Built-ins in the "Condition part" of a pattern aren't supposed to do any
-rewriting (I suppose one could do some awful side-effectful hackery, but then I
-would just disallow it). Those Conditions just test whether some pattern
-pertains, they can't affect the outcome.
-
-I need to think a lot more about this, but I'm pretty sure I'm on the correct
-road, here, and your issue is a GREAT CATCH, and exposed some carelessness on my
-part. Keep it up!
+rewriting. Those Conditions just test whether some pattern pertains, they can't
+affect the outcome.
 
    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -305,8 +132,6 @@ part. Keep it up!
    lingering, prior definitions. This is cheap paranoia.
 
  *************************************************************************** *)
-
-<<"GS0.m"
 
 (* Section 3.1, Preliminaries ********************************************** *)
 (* ___          ___       _               _
@@ -342,6 +167,8 @@ leibnizE[ premise:eqv[ x_, y_ ], e_, z_ ] :=
                Print["=   <X = Y>: " <> ToString[premise]];
                Print["  E[z := Y]: " <> ToString[conclusion[[2]]]];
                conclusion[[2]]]
+
+(* TODO: THIS TRANSITIVITY IS KNOWN TO BE WRONG *)
 
 ClearAll[transitivity]
 transitivity[ and [ eqv[x_, y_], eqv[y_, z_] ] ] := eqv[x, z]
@@ -443,11 +270,11 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
    A few notes about this proof are necessary. First, there are many ways to
    parenthesize the Axiom of Symmetry into binary uses of eqv, i.e., "===":
 
-       (p === q) === (q === p)    (* presumably G&S's intention *)
-       p === (q === (q === p))
-       p === ((q === q) === p)
-       (p === (q === q)) === p
-       ((p === q) === q) === p
+       ( p ===   q) === (q   === p)    (* presumably G&S's intention *)
+         p ===  (q  === (q   === p))
+         p === ((q  ===  q)  === p)
+       ( p ===  (q ===   q)) === p
+       ((p ===   q) ===  q)  === p
 
        eqv[ eqv[p, q], eqv[q, p] ]
        eqv[ p, eqv[ q, eqv[q, p] ] ]
@@ -455,7 +282,7 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
        eqv[ eqv[ p, eqv[q, q] ], p ]
        eqv[ eqv[ eqv[p, q], q ], p ]
 
-   The number of ways is the Catalan number C_3, https://goo.gl/cNExhR, which is
+   The number of ways is the Catalan number C_3,  https://goo.gl/cNExhR, which is
    five https://goo.gl/rzbfwD, https://goo.gl/b2ZXVE, so I got them all. These
    numbers increase quickly with the number of terms in an expression, but
    that's not the hazard for us. If each associativity step of a theorem has
@@ -472,7 +299,7 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
 
    That's not good enough for us right now because we're doing explicit, formal
    calculations. Instead, we will pick one particular parenthesization per step
-   and be satisfied at the end that we got them all.
+   and be informally satisfied at the end that we got them all.
 
    In this case, we'll be willing, mentally, to accept eqv[p, eqv[p, q, q]] as
    the statement of the proposition we're trying to prove, and
@@ -495,7 +322,7 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
    definition, then we may proceed.
 
    Before explaining the proof line-by-line, we note that simply one invocation
-   of symmetry suffices, namely
+   of symmetry on the outermost eqv suffices, namely
 
        symmetryOfEqv[eqv[p, eqv[p, q, q]]] ~~> eqv[eqv[p, q, q], p]
 
@@ -520,7 +347,7 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
          E[z := Y]: eqv[p, p]
 
    We then feed the proposition once more through leibnizE, this time with X = p
-   and Y = eqv[p, q, q], noting mentally, informally that our intermediate form
+   and Y = eqv[p, q, q], noting mentally, informally, that our intermediate form
    eqv[p, p] is present (and eaten up) as E[z := X]:
 
        {leibnizE:, x, p, y, eqv[p, q, q]}
@@ -562,7 +389,7 @@ expect[ eqv[eqv[p, q, q], p]
 
    That's more than a little round-about, but at least we avoided an explosion
    of rules for associativity of binary combinations. That need may come back to
-   haunt us, and we may get into Attribute Flat, as we did with "deqv" above.
+   haunt us, and we may get into attribute Flat, as we did with "deqv" above.
 
  *************************************************************************** *)
 
@@ -2573,6 +2400,273 @@ Module[{proposition = and[p, true]},
        // expectBy[    p                         , "1.5 leibniz"] //
        Identity
 ] ]
+
+(* ****************************************************************************
+   _     _____             _    _ _
+  /_\   |_   _| _ ___ _  _| |__| (_)_ _  __ _
+ / _ \    | || '_/ _ \ || | '_ \ | | ' \/ _` |
+/_/ \_\   |_||_| \___/\_,_|_.__/_|_|_||_\__, |
+                                        |___/
+ _____ _
+|_   _| |_  ___ ___ _ _ ___ _ __
+  | | | ' \/ -_) _ \ '_/ -_) '  \
+  |_| |_||_\___\___/_| \___|_|_|_|
+
+   and exhaustive testing as a solution.
+
+   Theorem 3.49, on first examination, is troubling.
+
+       p /\ (q === r) === p /\ q === p /\ r === p
+
+   It seems to say that p /\ (q === r) === p, which is clearly false if p is
+   true, q is false, and r is true. In that case, p /\ (q === r) is p /\ false,
+   which is false, but p is true. The resolution is that we must consider all
+   the equivalences in the theorem, we can't just pick one. Then we must
+   parenthesize it in some way. The following explains:
+
+   When p is true, q is false, and r is true, we get
+
+       true /\ false === true /\ false === true /\ true === true
+
+   which looks crazy. Just because === is associative doesn't mean we don't NEED
+   to parenthesize it. Associativity means that all the ways of parenthesizing
+   it produce the same answer. There are five ways of parenthesizing it (the
+   Catalan number, again). First, parenthesize the conjunctions so we don't get
+   confused. We haven't parenthesized the equivalences yet:
+
+       (true /\ false) === (true /\ false) === (true /\ true) === true
+
+   Now, replace the conjunctions with their constant values (reduce them):
+
+       false === false === true === true
+
+   Finally, examine all five parenthesizations of the equivalences, using
+   single-equals to reduce the size:
+
+        (false =   false) = (true   = true)
+       ((false =   false) =  true)  = true
+        (false =  (false  =  true)) = true
+         false = ((false  =  true)  = true)
+         false =  (false  = (true   = true))
+
+   Reduce these, imploding the parenthesized sub-expressions from the inside
+   out:
+
+        (false =   false) = (true   = true)  ~~>  true  =  true
+       ((false =   false) =  true)  = true   ~~> (true  =  true)  = true
+        (false =  (false  =  true)) = true   ~~> (false =  false) = true
+         false = ((false  =  true)  = true)  ~~>  false = (false  = true)
+         false =  (false  = (true   = true)) ~~>  false = (false  = true)
+
+   They're all true, as we can see by doing the last steps on the right-hand
+   sides of ~~>, in our heads!
+
+   Reduce the size even further by replacing true with t and false with t:
+
+        (f =   f) = (t   = t)  ~~>  t =  t
+       ((f =   f) =  t)  = t   ~~> (t =  t) = t
+        (f =  (f  =  t)) = t   ~~> (f =  f) = t
+         f = ((f  =  t)  = t)  ~~>  f = (f  = t)
+         f =  (f  = (t   = t)) ~~>  f = (f  = t)
+
+   There are seven more assignments of true and false to p, q, and r, eight all
+   together. Encode the original parenthesizations with our binary form of eqv,
+   no attributes yet, so that we can mechanize the exploration of all cases:
+
+       p /\ (q === r) === p /\ q === p /\ r === p
+
+       let a = p /\ (q === r),
+           b = p /\ q,
+           c = p /\ r,
+           d = p
+
+   Here are all binary parenthesizations of eqv[a, b, c, d]:
+
+       eqv[eqv[a, b], eqv[c, d]]
+       eqv[eqv[eqv[a, b], c], d]
+       eqv[eqv[a, eqv[b, c]], d]
+       eqv[a, eqv[eqv[b, c], d]]
+       eqv[a, eqv[b, eqv[c, d]]]
+
+   now with layout, exposing a little more of the essential Catalan structure,
+   and defining a symbol in Mathematica:
+
+   *)
+
+       ClearAll[eqv, a, b, c, d, p, q, r];
+
+       propositions =
+       { eqv[    eqv[a,         b], eqv[c,   d]]  ,
+         eqv[eqv[eqv[a,         b],     c],  d]   ,
+         eqv[    eqv[a,     eqv[b,      c]], d]   ,
+         eqv[        a, eqv[eqv[b,      c],  d]]  ,
+         eqv[        a,     eqv[b,  eqv[c,   d]]] }
+
+   (*
+
+   Let's cheat like hell, making sure all five parenthesizations are True, with
+   the constant "True" in Mathematica and mathics, for all eight assignments of
+   True and False to p, q, and r, then working backwards to understand how and
+   why:
+
+   *)
+
+       theoremRules = { a -> and[p, eqv[q, r]],
+                        b -> and[p, q],
+                        c -> and[p, r],
+                        d -> p }
+
+       allAssignments = (Table[propositions /. theoremRules,
+                               {p, {True, False}},
+                               {q, {True, False}},
+                               {r, {True, False}}] // Flatten)
+
+   (*
+
+   There are forty elements in the table, five parenthesizations for each of
+   eight assignments of truth values. Check that they're all True when we
+   replace inert "and" with built-in "And", and inert "eqv" with built-in
+   "SameQ":
+
+   *)
+
+       expect [True,
+                And @@ (allAssignments /. {and -> And, eqv -> SameQ})]
+
+   (*
+
+   The syntax "And @@" means "apply And to the list of results." It's a way of
+   detecting any "False" amongst the forty results. And @@ <some-list> is True
+   only if all elements of <some-list> are True.
+
+   The theorem is correct, but we only know so by exhaustive testing. Can we do
+   better?
+
+   "Working backwards" means that we'll remove our cheating step-by-step. First,
+   we can substitute t and f instead of True and False, apply Orderless to "eqv"
+   and "and", and write some rewrite rules for "eqv" and "and" that we know are
+   right, even though we don't rigorously cite the reasons for knowing just yet:
+
+   *)
+
+       ClearAll[t, f];
+       SetAttributes[and, {Orderless}];
+       and[t, t] := t; and[f, f] := f; and[f, t] := f;
+       SetAttributes[eqv, {Orderless}];
+       eqv[t, t] := t; eqv[f, f] := t; eqv[f, t] := f;
+
+       expect [ConstantArray[t, 40],
+                Table[propositions /. theoremRules,
+                      {p, {t, f}}, {q, {t, f}}, {r, {t, f}}] // Flatten]
+
+   (*
+
+   Let's take away the "meanings" of "eqv" and "and", that is, their rewrites,
+   look at the table of forty expressions, and sort them lexicographically. We
+   can spot four duplicates, occasioned by the Orderless attributes, once each
+   on "eqv" and "and", for a total of four:
+
+       ClearAll[eqv, and]
+       SetAttributes[eqv, {Orderless}];
+       SetAttributes[and, {Orderless}];
+       (Table[propositions /.
+           theoremRules,
+           {p, {t, f}}, {q, {t, f}}, {r, {t, f}}] // Flatten // Sort)
+
+       {eqv[f, eqv[and[f, f], eqv[and[f, f], and[f, eqv[f, f]]]]],
+        eqv[f, eqv[and[f, f], eqv[and[f, t], and[f, eqv[f, t]]]]],
+        eqv[f, eqv[and[f, t], eqv[and[f, f], and[f, eqv[f, t]]]]],
+        eqv[f, eqv[and[f, t], eqv[and[f, t], and[f, eqv[t, t]]]]],
+        eqv[f, eqv[and[f, eqv[f, f]], eqv[and[f, f], and[f, f]]]],
+        eqv[f, eqv[and[f, eqv[f, t]], eqv[and[f, f], and[f, t]]]], <-- DUP
+        eqv[f, eqv[and[f, eqv[f, t]], eqv[and[f, f], and[f, t]]]], <-- DUP
+        eqv[f, eqv[and[f, eqv[t, t]], eqv[and[f, t], and[f, t]]]],
+        eqv[t, eqv[and[f, t], eqv[and[f, t], and[t, eqv[f, f]]]]],
+        eqv[t, eqv[and[f, t], eqv[and[t, t], and[t, eqv[f, t]]]]],
+        eqv[t, eqv[and[t, t], eqv[and[f, t], and[t, eqv[f, t]]]]],
+        eqv[t, eqv[and[t, t], eqv[and[t, t], and[t, eqv[t, t]]]]],
+        eqv[t, eqv[and[t, eqv[f, f]], eqv[and[f, t], and[f, t]]]],
+        eqv[t, eqv[and[t, eqv[f, t]], eqv[and[f, t], and[t, t]]]], <-- DUP
+        eqv[t, eqv[and[t, eqv[f, t]], eqv[and[f, t], and[t, t]]]], <-- DUP
+        eqv[t, eqv[and[t, eqv[t, t]], eqv[and[t, t], and[t, t]]]],
+        eqv[and[f, eqv[f, f]], eqv[f, eqv[and[f, f], and[f, f]]]],
+        eqv[and[f, eqv[f, f]], eqv[and[f, f], eqv[f, and[f, f]]]],
+        eqv[and[f, eqv[f, t]], eqv[f, eqv[and[f, f], and[f, t]]]], <-- DUP
+        eqv[and[f, eqv[f, t]], eqv[f, eqv[and[f, f], and[f, t]]]], <-- DUP
+        eqv[and[f, eqv[f, t]], eqv[and[f, f], eqv[f, and[f, t]]]],
+        eqv[and[f, eqv[f, t]], eqv[and[f, t], eqv[f, and[f, f]]]],
+        eqv[and[f, eqv[t, t]], eqv[f, eqv[and[f, t], and[f, t]]]],
+        eqv[and[f, eqv[t, t]], eqv[and[f, t], eqv[f, and[f, t]]]],
+        eqv[and[t, eqv[f, f]], eqv[t, eqv[and[f, t], and[f, t]]]],
+        eqv[and[t, eqv[f, f]], eqv[and[f, t], eqv[t, and[f, t]]]],
+        eqv[and[t, eqv[f, t]], eqv[t, eqv[and[f, t], and[t, t]]]], <-- DUP
+        eqv[and[t, eqv[f, t]], eqv[t, eqv[and[f, t], and[t, t]]]], <-- DUP
+        eqv[and[t, eqv[f, t]], eqv[and[f, t], eqv[t, and[t, t]]]],
+        eqv[and[t, eqv[f, t]], eqv[and[t, t], eqv[t, and[f, t]]]],
+        eqv[and[t, eqv[t, t]], eqv[t, eqv[and[t, t], and[t, t]]]],
+        eqv[and[t, eqv[t, t]], eqv[and[t, t], eqv[t, and[t, t]]]],
+        eqv[eqv[f, and[f, f]], eqv[and[f, f], and[f, eqv[f, f]]]],
+        eqv[eqv[f, and[f, f]], eqv[and[f, t], and[f, eqv[f, t]]]],
+        eqv[eqv[f, and[f, t]], eqv[and[f, f], and[f, eqv[f, t]]]],
+        eqv[eqv[f, and[f, t]], eqv[and[f, t], and[f, eqv[t, t]]]],
+        eqv[eqv[t, and[f, t]], eqv[and[f, t], and[t, eqv[f, f]]]],
+        eqv[eqv[t, and[f, t]], eqv[and[t, t], and[t, eqv[f, t]]]],
+        eqv[eqv[t, and[t, t]], eqv[and[f, t], and[t, eqv[f, t]]]],
+        eqv[eqv[t, and[t, t]], eqv[and[t, t], and[t, eqv[t, t]]]]}
+
+   What if "eqv" is also Flat, now using built-in "Union" to remove the
+   duplicates:
+
+       ClearAll[eqv, and];
+       SetAttributes[eqv, {Flat, Orderless}];
+       SetAttributes[and, {Orderless}];
+       (Table[propositions /.
+             theoremRules, {p, {t, f}}, {q, {t, f}}, {r, {t, f}}] //
+           Flatten // Union // Sort)
+
+       {eqv[f, and[f, f], and[f, f], and[f, eqv[f, f]]],
+        eqv[f, and[f, f], and[f, t], and[f, eqv[f, t]]],
+        eqv[f, and[f, t], and[f, t], and[f, eqv[t, t]]],
+        eqv[t, and[f, t], and[f, t], and[t, eqv[f, f]]],
+        eqv[t, and[f, t], and[t, t], and[t, eqv[f, t]]],
+        eqv[t, and[t, t], and[t, t], and[t, eqv[t, t]]]}
+
+   Only six cases. On a stretch, we can check them mentally. All but the fourth
+   and fifth are patently obvious. For those two, we need to mentally
+   parenthesize at least once, confident in our belief of associativity. We'll
+   use the machine to check to remove any doubt. Notice the use of "//.",
+   "ReplaceRepeated", to model continued reduction all the way to normal form:
+
+   *)
+       ClearAll[eqv, and];
+              SetAttributes[eqv, {Flat, Orderless}];
+              SetAttributes[and, {Orderless}];
+       expect [ConstantArray[t, 6],
+              (Table[propositions /.
+                     theoremRules, {p, {t, f}}, {q, {t, f}}, {r, {t, f}}] //
+               Flatten // Union // Sort) //. (* ReplaceRepeated, here *)
+                   {and[t, t] -> t, and[f, t] -> f, and[f, f] -> f,
+                    eqv[t, t] -> t, eqv[f, t] -> f, eqv[f, f] -> t}
+       ]
+   (*
+
+   Make sure to clear out all ad-hoc symbols we defined and the attributes we
+   accumulated on "eqv" and "and". The following is paranoid overkill, but still
+   correct.
+
+   *)
+
+         ClearAll[a, b, c, d, t, f, p, q, r,
+                  eqv, and,
+                  propositions, theoremRules, allAssignments]
+
+   (*
+
+   Now, a big step. Can we prove the theorem using eqv that has Flat, Orderless,
+   OneIdentity?
+
+ *************************************************************************** *)
+
 
 
 (* ****************************************************************************
