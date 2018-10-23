@@ -2734,9 +2734,9 @@ Module[{proposition = and[p, true]},
 
    Only six cases. On a stretch, we can check them mentally. All but the fourth
    and fifth are obvious. For those two, we must mentally parenthesize at least
-   once, confident in our belief of associativity. We'll machine-check to to
-   remove any doubt. Notice "//.", "ReplaceRepeated", to model continued
-   reduction all the way to normal form:
+   once, confident in our belief of associativity. We'll machine-check to remove
+   any doubt. Notice "//.", "ReplaceRepeated", to model continued reduction all
+   the way to normal form:
 
    *)
        ClearAll[eqv, and];
