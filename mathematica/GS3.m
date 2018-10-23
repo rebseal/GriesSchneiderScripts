@@ -36,7 +36,6 @@
 
    transitivityLaw[sameq[x_, y_], sameq[y_, z_]] := sameq[x, z]
 
-
  _____ ___  ___   ___
 |_   _/ _ \|   \ / _ \
   | || (_) | |) | (_) |
@@ -134,10 +133,12 @@ affect the outcome.
  *************************************************************************** *)
 
 (* Section 3.1, Preliminaries ********************************************** *)
-(* ___          ___       _               _
+(*
+   ___          ___       _               _
   / _ \_______ / (_)_ _  (_)__  ___ _____(_)__ ___
  / ___/ __/ -_) / /  ' \/ / _ \/ _ `/ __/ / -_|_-<
 /_/  /_/  \__/_/_/_/_/_/_/_//_/\_,_/_/ /_/\__/___/
+
  *)
 ClearAll[eqv]
 ClearAll[leibniz]
@@ -151,13 +152,10 @@ leibniz[ eqv[x_, y_], e_, z_ ] :=
                 "conclusion", eqv[e /. {z -> x}, e /. {z -> y}]}]; *)
          eqv[e /. {z -> x}, e /. {z -> y}])
 
-(*
+(* Instrumented version of Leibniz that prints a trace. Works best with a binary
+   "e", often an "eqv". Informally and in practical application, uses the
+   premise X=Y to drive E[z:=X] to E[z:=Y]. *)
 
-   Instrumented version of Leibniz that prints a trace. Works best with a binary
-   "e", presumably an "eqv". Informally and in practical application, uses the
-   premise X=Y to drive E[z:=X] to E[z:=Y].
-
- *)
 ClearAll[leibnizE]
 leibnizE[ premise:eqv[ x_, y_ ], e_, z_ ] :=
         Module[{conclusion = leibniz[premise, e, z]},
@@ -178,12 +176,14 @@ substitution[e_, v_:List, f_:List] := e /. MapThread [ Rule, {v, f} ]
 
 (* Section 3.2, Equivalence and true *************************************** *)
 
-(* ____          _           __                   ____      __
+(*
+   ____          _           __                   ____      __
   / __/__ ___ __(_)  _____ _/ /__ ___  _______   / __/___  / /_______ _____
  / _// _ `/ // / / |/ / _ `/ / -_) _ \/ __/ -_)  > _/_ _/ / __/ __/ // / -_)
 /___/\_, /\_,_/_/|___/\_,_/_/\__/_//_/\__/\__/  |_____/   \__/_/  \_,_/\__/
       /_/
- *)
+
+*)
 
 (* (3.1) Axiom, Associativity of eqv; both directions (computers are dumb) *)
 
@@ -203,12 +203,8 @@ symmetryOfEqv[eqv[p_, q_]] := eqv[q, p]
 ClearAll[identity]
 identity[eqv[q_, q_]] := eqv[true, eqv[q, q]]
 
-(*
-
-   Note that we can automate the associativity and symmetry axioms with mathics
-   Attributes: Flat and Orderless. Here is a dummy eqv that demonstrates this.
-
-*)
+(* Note that we can automate the associativity and symmetry axioms with
+   attributes Flat and Orderless. Here is a dummy eqv that demonstrates this. *)
 
 ClearAll[deqv]
 SetAttributes[deqv, {Flat, Orderless}]
@@ -223,22 +219,17 @@ expect[
     deqv[ deqv[p, q], r ] === deqv[ p, deqv[q, r] ]
 ]
 
-(*
-
-   Checking this automation, however, requires === instead of deqv itself, so
+(* Checking this automation, however, requires === instead of deqv itself, so
    it's delegating too much to mathics and spoiling our fun (for now). We'll
    revisit later when the work of constantly explicitly applying associativity
-   and symmetry becomes annoying.
-
-*)
+   and symmetry becomes annoying. *)
 
 ClearAll[deqv]
 
 (* Theorems, pages 43-44 ******************************************************
 
-   Need a little more display machinery that prints out annotations. That brings
-   us a little closer, though nowhere near close enough, to the book. As we
-   develop, we will slim this down and make it more palatable. You don't need to
+   Need more display machinery that prints out annotations. That brings us a
+   closer, to the book. As we develop, we slim this down. You don't need to
    understand how the display machinery works.
 
    Remember that "Reasoning with Leibniz," Section 1.5, page 14, allows us to
@@ -255,6 +246,13 @@ dump[annotation_, e_] := (
     Print[annotation <> " ~~> ", e];
     e)
 
+(* ****************************************************************************
+
+   Here is a proof that p === p === q === q is p === q === q === p. It considers
+   one parenthesization each of the expressions.
+
+ *************************************************************************** *)
+
 expect[ eqv[eqv[p, q, q], p]
 ,
 Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
@@ -268,12 +266,12 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
 (* ****************************************************************************
 
    A few notes about this proof are necessary. First, there are many ways to
-   parenthesize the Axiom of Symmetry into binary uses of eqv, i.e., "===":
+   parenthesize the Axiom of Symmetry into binary uses of eqv, i.e., "==="
 
-       ( p ===   q) === (q   === p)    (* presumably G&S's intention *)
+        (p ===   q) === (q   === p)    (* presumably G&S's intention *)
          p ===  (q  === (q   === p))
          p === ((q  ===  q)  === p)
-       ( p ===  (q ===   q)) === p
+        (p ===  (q  ===  q)) === p
        ((p ===   q) ===  q)  === p
 
        eqv[ eqv[p, q], eqv[q, p] ]
@@ -282,11 +280,11 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
        eqv[ eqv[ p, eqv[q, q] ], p ]
        eqv[ eqv[ eqv[p, q], q ], p ]
 
-   The number of ways is the Catalan number C_3,  https://goo.gl/cNExhR, which is
+   The number of ways is the Catalan number C_3, https://goo.gl/cNExhR, which is
    five https://goo.gl/rzbfwD, https://goo.gl/b2ZXVE, so I got them all. These
    numbers increase quickly with the number of terms in an expression, but
    that's not the hazard for us. If each associativity step of a theorem has
-   five branches, then our proof will have at least 5^s independent threads,
+   five branches, then our proofs will have at least 5^s independent threads,
    where s is the number of associative steps. That's bad.
 
    They're all equivalent by the Axiom of Associativity, 3.1, which precedes
@@ -299,12 +297,14 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
 
    That's not good enough for us right now because we're doing explicit, formal
    calculations. Instead, we will pick one particular parenthesization per step
-   and be informally satisfied at the end that we got them all.
+   and be informally satisfied at the end that we got them all (later, in a
+   section titled "a troubling theorem", we will go for it and formally test all
+   parenthesizations).
 
    In this case, we'll be willing, mentally, to accept eqv[p, eqv[p, q, q]] as
    the statement of the proposition we're trying to prove, and
    eqv[eqv[p, q, q], p] as the particular parenthization of the Axiom of
-   Symmetry we reduce to, that is, if we're satisfied that if we can reduce
+   Symmetry we reduce to. That is, if we're satisfied by reducing
 
        eqv[p, eqv[p, q, q]]
 
@@ -318,8 +318,9 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
    That leaves open the question of the meaning of eqv[a, b, c], a ternary eqv,
    which we have not defined. We define it now to mean eqv[eqv[a, b], c] or
    eqv[a, eqv[b, c]], but we won't explicitly reduce it that way because we
-   don't want to invoke "or" for this proof. If you're willing to go with this
-   definition, then we may proceed.
+   don't want to invoke "or" for this proof and we don't want to explode the
+   number of cases in a proof. If you're willing to go with this minor
+   informality, then we may proceed.
 
    Before explaining the proof line-by-line, we note that simply one invocation
    of symmetry on the outermost eqv suffices, namely
@@ -327,8 +328,8 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
        symmetryOfEqv[eqv[p, eqv[p, q, q]]] ~~> eqv[eqv[p, q, q], p]
 
    but G&S invoke symmetry twice, with an intermediate step of eqv[p, p], and
-   we're going to take a dirty road to get there with two invocations of
-   symmetry and two invocations of leibnizE.
+   we're going to do the same: two invocations of symmetry and two invocations
+   of leibnizE.
 
    First, we feed our proposition through symmetry, failing to notice that we're
    done:
@@ -343,7 +344,7 @@ Module[{proposition = eqv[p, eqv[p, q, q]]}, (* the prop. I want to prove *)
        {leibnizE:, x, eqv[p, q, q], y, p}
          E(z)     : eqv[p, z]
          E[z := X]: eqv[p, eqv[p, q, q]]
-       =   <X = Y>: eqv[eqv[p, q, q], p]    <~~~ THAT'S AN AXIOM
+       =   <X = Y>: eqv[eqv[p, q, q], p]    <--- THAT'S AN AXIOM
          E[z := Y]: eqv[p, p]
 
    We then feed the proposition once more through leibnizE, this time with X = p
@@ -388,8 +389,7 @@ expect[ eqv[eqv[p, q, q], p]
 (* ****************************************************************************
 
    That's more than a little round-about, but at least we avoided an explosion
-   of rules for associativity of binary combinations. That need may come back to
-   haunt us, and we may get into attribute Flat, as we did with "deqv" above.
+   of rules for associativity of binary combinations.
 
  *************************************************************************** *)
 
@@ -2401,6 +2401,106 @@ Module[{proposition = and[p, true]},
        Identity
 ] ]
 
+(* leibniz[ eqv[x_, y_], e_, z_ ] := eqv[e /. {z -> x}, e /. {z -> y}])      *)
+(* transitivity[ and [ eqv[x_, y_], eqv[y_, z_] ] ] := eqv[x, z]             *)
+(* substitution[e_, v_:List, f_:List] := e /. MapThread [ Rule, {v, f} ]     *)
+(*                                                                           *)
+(* (3.1) Axiom, Associativity of eqv                                         *)
+(* leftAssociativity  = eqv[ eqv[p_, q_], r_ ] :> eqv[ p, eqv[q, r] ]        *)
+(* rightAssociativity = eqv[ p_, eqv[q_, r_] ] :> eqv[ eqv[p, q], r ]        *)
+(*                                                                           *)
+(* (3.2) Axiom, Symmetry of eqv                                              *)
+(* p === q === q === p                                                       *)
+(* symmetryOfEqv = eqv[p_, q_] :> eqv[q, p]                                  *)
+(*                                                                           *)
+(* (3.3) Axiom, Identity of eqv, page 44                                     *)
+(* true === q === q                                                          *)
+(* identity = eqv[q_, q_] :> eqv[true, eqv[q, q]]                            *)
+(*                                                                           *)
+(* (3.4) Theorem, _true_                                                     *)
+(* (3.5) Theorem, Reflexivity of eqv: eqv[p, p]                              *)
+(* (3.9) Axiom, Distributivity of "not" over "eqv"                           *)
+(* notRule    = (not[eqv[p_, q_]] :> eqv[not[p], q])                         *)
+(* invNotRule = (eqv[not[p_], q_] :> not[eqv[p, q]])                         *)
+(*                                                                           *)
+(* (3.10) Axiom, Definition of "neqv"                                        *)
+(* neqvRule    = neqv[p_, q_]     :> not[eqv[p, q]]                          *)
+(* invNeqvRule = not[eqv[p_, q_]] :> neqv[p, q]                              *)
+(*                                                                           *)
+(* (3.11) Unnamed theorem eqv[ eqv[not[p], q], eqv[p, not[q] ]               *)
+(* (3.12) Double negation: eqv[ not[not[p]], p ]                             *)
+(* doubleNegation = not[not[p_]] :> p                                        *)
+(*                                                                           *)
+(* (3.13) Negation of false                                                  *)
+(* (3.14) Unnamed Theorem eqv[ neqv[p, q], eqv[ not[p], q] ]                 *)
+(* (3.15) Unnamed Theorem eqv[ eqv[ not[p], p ], false]                      *)
+(* (3.18) Mutual associativity of eqv and neqv                               *)
+(* (3.19) Mutual interchangeability                                          *)
+
+(* (3.24) Axiom, Symmetry of \/, page 49                                     *)
+(*                                                                           *)
+(*   symmetryOfDisjunction = or[p_, q_] :> or[q, p]                          *)
+(*                                                                           *)
+(* (3.25) Axiom, Associativity of \/, page 49                                *)
+(*                                                                           *)
+(*   leftAssociativityOfDisjunction  = or[or[p_, q_], r_] :> or[p, or[q, r]] *)
+(*   rightAssociativityOfDisjunction = or[p_, or[q_, r_]] :> or[or[p, q], r] *)
+(*                                                                           *)
+(* (3.26) Axiom, Idempotency of \/, page 49                                  *)
+(*                                                                           *)
+(*   idempotencyOfDisjunction = or[p_, p_] :> p;                             *)
+(*   invIdempotencyOfDisjunction = p_ :> or[p, p]                            *)
+(*                                                                           *)
+(* (3.27) Axiom, Distributivity of \/ over eqv, page 49                      *)
+(*                                                                           *)
+(*   multiplyingOutDisjunction = or[p_,eqv[q_,r_]] :> eqv[or[p,q],or[p, r]]  *)
+(*   factoringDisjunction = eqv[or[p_, q_], or[p_, r_]] :> or[p, eqv[q, r]]  *)
+(*                                                                           *)
+(* (3.28) Axiom, Excluded Middle                                             *)
+(*                                                                           *)
+(*   excludedMiddle[p_] := true -> or[p, not[p]];                            *)
+(*   invExcludedMiddle   = or[p_, not[p_]] :> true;                          *)
+(*                                                                           *)
+(* (3.29) Theorem, Zero of \/, page 49                                       *)
+(*                                                                           *)
+(*   zeroOfOr[p_] := or[p, true] -> true                                     *)
+(*                                                                           *)
+(* (3.30) Theorem, Identity of \/ : p \/ false === p                         *)
+(*                                                                           *)
+(*   notPRule    = not[p_] :> eqv[false, p]                                  *)
+(*   invNotPRule = eqv[false, p_] :> not[p]                                  *)
+(*                                                                           *)
+(*   identityOfDisjunction         = or[p_, false] :> p                      *)
+(*   invIdentityOfDisjunction[p_] := p -> or[p, false]                       *)
+(*                                                                           *)
+(* (3.31) Theorem, Distributivity of \/ over \/                              *)
+(*                                                                           *)
+(*   distributivityOfOrOverOr  = or[p_,or[q_,r_]] :> or[or[p, q], or[p, r]]  *)
+(*   invDistributivityOfOverOr = or[or[p_,q_],or[p_,q_]] :> or[p, or[q, r]]  *)
+(*                                                                           *)
+(* (3.32) Unnamed Theorem                                                    *)
+(*                                                                           *)
+(*   eqv[   p ,  eqv[or[p, q], or[p, not[q]]]   ]                            *)
+(*                                                                           *)
+(* (3.35) Axiom, Golden rule                                                 *)
+(*                                                                           *)
+(*   goldenRule1    = and[p_, q_] :> eqv[p, q, or[p, q]]                     *)
+(*   invGoldenRule1 = eqv[p_, q_, or[p_, q_]] :> and[p, q]                   *)
+(*                                                                           *)
+(*   goldenRule2 = eqv[p_, q_] :> eqv[and[p, q], or[p, q]]                   *)
+(*                                                                           *)
+(* (3.36) Theorem: Symmetry of /\                                            *)
+(*                                                                           *)
+(* (3.37) Theorem: Associativity of /\                                       *)
+(*                                                                           *)
+(*   SetAttributes[or,  {Flat, Orderless, OneIdentity}]                      *)
+(*   SetAttributes[eqv, {Flat, Orderless, OneIdentity}]                      *)
+(*                                                                           *)
+(* (3.38) Theorem: Idempotency of /\ : p /\ p === p                          *)
+(*                                                                           *)
+(* (3.39) Theorem Identity of /\ : p /\ true === p                           *)
+
+
 (* ****************************************************************************
    _     _____             _    _ _
   /_\   |_   _| _ ___ _  _| |__| (_)_ _  __ _
@@ -2524,9 +2624,10 @@ Module[{proposition = and[p, true]},
    (*
 
    There are forty elements in the table, five parenthesizations for each of
-   eight assignments of truth values. Check that they're all True when we
-   replace inert "and" with built-in "And", and inert "eqv" with built-in
-   "SameQ":
+   eight assignments of truth values. We might generate twenty-four times that,
+   for a total of 960, if we were to worry about commutativity. But, for now,
+   check that the forty are all True when we replace inert "and" with built-in
+   "And", and inert "eqv" with built-in "SameQ":
 
    *)
 
@@ -2632,10 +2733,10 @@ Module[{proposition = and[p, true]},
         eqv[t, and[t, t], and[t, t], and[t, eqv[t, t]]]}
 
    Only six cases. On a stretch, we can check them mentally. All but the fourth
-   and fifth are patently obvious. For those two, we need to mentally
-   parenthesize at least once, confident in our belief of associativity. We'll
-   use the machine to check to remove any doubt. Notice the use of "//.",
-   "ReplaceRepeated", to model continued reduction all the way to normal form:
+   and fifth are obvious. For those two, we must mentally parenthesize at least
+   once, confident in our belief of associativity. We'll machine-check to to
+   remove any doubt. Notice "//.", "ReplaceRepeated", to model continued
+   reduction all the way to normal form:
 
    *)
        ClearAll[eqv, and];
