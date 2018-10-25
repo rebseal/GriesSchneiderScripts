@@ -2753,15 +2753,125 @@ Module[{proposition = and[p, true]},
 
    Make sure to clear out all ad-hoc symbols we defined and the attributes we
    accumulated on "eqv" and "and". The following is paranoid overkill, but still
-   correct.
+   correct. We don't clear "propositions" for a little while.
 
    *)
 
-         ClearAll[a, b, c, d, t, f, p, q, r,
-                  eqv, and,
-                  propositions, theoremRules, allAssignments]
+       ClearAll[a, b, c, d, t, f, p, q, r,
+                eqv, and,
+                theoremRules, allAssignments]
 
    (*
+
+   Let us generate all the parenthesizations mechanically.
+
+   Define a function (actually, a named rewrite rule), "spl" for "split," which
+   will generate a list (in curly braces) of all binary parenthesizations for an
+   arbitrary non-commutative expression like e[a, b, c, d, f, g] (there are
+   Catalan(6) = 42 (nice, huh?) distinct binary parenthesizations for this
+   expression). Replace binary expressions with a list of just themselves:
+
+    *)
+
+       spl[h_[a_, b_]] := {h[a, b]};
+
+   (*
+
+   Replace unary expressions with a list of their arguments:
+
+   *)
+
+       spl[h_[a_]] := {a};
+
+   (*
+
+   For the general case, with one term a_ followed by at least one more b__,
+   first split the input into a sequence of "lefts" and a parallel sequence of
+   "rights" by moving a conceptual close-open pair of parens down the line of
+   arguments. For example, [a, b, c, d] produces
+
+       ( a )( b c d )
+       ( a b )( c d )
+       ( a b c )( d )
+
+   Do that with these two lines:
+
+       lefts = Table[xs[[;; i]], {i, L}];
+       rights = Table[xs[[i + 1 ;;]], {i, L}];
+
+   where L is one fewer than the number of arguments. In our example, L = 3, so
+   we expect three pairs of parallel lists:
+
+       lefts          rights
+       ==========     ==========
+       e[a]           e[b, c, d]
+       e[a, b]        e[c, d]
+       e[a, b, c]     e[d]
+
+   Now, recurse "spl" on the lefts and the rights (this takes a little AHA!, or,
+   if you prefer, a little faith that we have a correct recursion):
+
+       lefts
+       ==========
+    1. e[a]           {a}                            <-- See first rule above
+    2. e[a, b]        {e[a, b]}                      <-- See second rule above
+    3. e[a, b, c]     {e[a, e[b, c]], e[e[a, b], c]} <-- Have faith
+
+       rights
+       ==========
+    1. e[b, c, d]     {e[b, e[c, d]], e[e[b, c], d]} <-- Have faith
+    2. e[c, d]        {e[c, d]}                      <-- See second rule above
+    3. e[d]           {d}                            <-- See first rule above
+
+   Finally, produce all pairs with one element chosen from each of the recursed
+   lefts and one element chosen from each of the recursed rights. Mathematica's
+   built-in "Tuples" does exactly that, but it produces lists instead of
+   expressions headed by "e" or "eqv" or whatever. Fix that by composing
+   "Tuples" with the desired head, which we capture in the pattern variable
+   "h_". That composition is denoted by "Tuples@*h".
+
+   Wolfram's "MapThread" is like Haskell's "zip": it applies a function to pairs
+   (or tuples) of arguments. Let's apply "Tuple@.h" to line 1 from transformed
+   lefts {a} and line 1 from transformed rights {e[b,e[cd]],e[e[b,c],d]} above
+   to produce {e[a,e[b,e[cd]]],e[a,e[e[b,c],d]]}. Likewise for lines 2 and 3, in
+   parallel, from each of lefts and rights.
+
+       MapThread[Tuples@*h {spl /@ lefts, spl /@ rights}]
+
+   We must flatten the results exactly one time to get a final list. In
+   Haskell-speak, the entire computation is "in the list monad." The final
+   result is the following:
+
+   *)
+
+       spl[xs : h_[a_, bs__]] :=
+        Module[{L = Length[xs] - 1, lefts, rights, flefts, frights},
+         lefts = Table[xs[[;; i]], {i, L}];
+         rights = Table[xs[[i + 1 ;;]], {i, L}];
+         flefts = spl /@ lefts;
+         frights = spl /@ rights;
+         Flatten[MapThread[Tuples@*h, {flefts, frights}], 1]]
+
+   (*
+
+   Let's make sure that the results are the same as our manually constructed
+   "propositions". Sort both to make sure that they're in the same order:
+
+   *)
+
+       ClearAll[eqv, a, b, c, d];
+
+       expect [
+           Sort[propositions],
+           Sort[spl[eqv[a, b, c, d]]]
+       ]
+
+       ClearAll[propositions];
+
+   (*
+
+   Another theorem in the bag, though not one directly from the book G&S, just
+   inspired by it.
 
    Now, a big step. Can we prove the theorem using eqv that has Flat, Orderless,
    OneIdentity?
