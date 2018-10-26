@@ -2176,6 +2176,8 @@ invGoldenRule1 = eqv[p_, q_, or[p_, q_]] :> and[p, q]
 ClearAll[goldenRule2]
 goldenRule2 = eqv[p_, q_] :> eqv[and[p, q], or[p, q]]
 
+
+
 (* (3.36) Symmetry of /\ *)
 
 expect[ and[q, p]
@@ -2198,16 +2200,17 @@ Module[{proposition = and[p, q]},
 
 (* (3.37) Associativity of /\ *)
 
-(* Because the Golden Rule expands into a three-part expression, our proofs can
-   get very long, with many steps just re-arranging and flattening combinations
-   of "eqv" and "or". At this point, we've seen enough and we trust mathics to
-   automate associativity ("Flat") and symmetry ("Orderless"). Mathematica
-   implements Orderless by a trick: put terms in alphabetical order. That way,
-   they don't have to search over combinatorially large spaces of alternatives.
-   I'm not sure mathics does that. Sergey Markelov fixed a bug in mathics that
-   broke "Orderless" (https://github.com/mathics/Mathics/issues/749). In his
-   investigations, it looks like mathics might be looping over all permutations.
-   We're not sure, yet.
+(* Because the Golden Rule, treated as the definition of "and", expands into a
+   three-part expression, our proofs can get very long, with many steps just
+   re-arranging and flattening combinations of "eqv" and "or". At this point,
+   we've seen enough and we trust Mathematica and mathics to automate
+   associativity ("Flat") and symmetry ("Orderless"). Mathematica implements
+   Orderless by a trick: put terms in alphabetical order. That way, Mathematica
+   doesn't have to search over combinatorially large spaces of alternatives. I'm
+   not sure mathics does that. Sergey Markelov fixed a bug in mathics that broke
+   "Orderless" (https://github.com/mathics/Mathics/issues/749). In his
+   investigations, it looks like mathics might, at least sometimes, be looping
+   over all permutations. We're not sure, yet.
 
    In the offing, We'll add "OneIdentity", which allows a symbol's "Default" to
    be filled in on a pattern match
@@ -2501,6 +2504,9 @@ Module[{proposition = and[p, true]},
 (* (3.39) Theorem Identity of /\ : p /\ true === p                           *)
 
 
+
+
+
 (* ****************************************************************************
    _     _____             _    _ _
   /_\   |_   _| _ ___ _  _| |__| (_)_ _  __ _
@@ -2760,7 +2766,6 @@ Module[{proposition = and[p, true]},
        ClearAll[a, b, c, d, t, f, p, q, r,
                 eqv, and,
                 theoremRules, allAssignments]
-
    (*
 
    Let us generate all the parenthesizations mechanically.
